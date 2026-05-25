@@ -1,0 +1,9 @@
+streamlit
+nba_api
+numpy
+pandas
+seaborn
+scipy
+scikit-learn
+xgboost
+matplotlib
