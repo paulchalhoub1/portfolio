@@ -27,7 +27,7 @@ If your system uses `python3` instead of `python`, use `python3` in the commands
 
 ```bash
 git clone https://github.com/paulchalhoub1/portfolio.git
-cd portfolio
+cd portfolio/wnba-ml
 ```
 
 ## 2. Create a virtual environment
