@@ -17,7 +17,7 @@ from sklearn.metrics import (
     RocCurveDisplay,
     PrecisionRecallDisplay,
 )
-from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import precision_score, recall_score, accuracy_score, precision_recall_curve, f1_score
 from nba_api.stats.endpoints import leaguedashteamstats
 
 logs = teamgamelogs.TeamGameLogs(season_nullable='2026', league_id_nullable='10').get_data_frames()[0].dropna()
@@ -130,9 +130,18 @@ for model in models:
   model.fit(x_train, y_train)
   accuracy = model.score(x_test, y_test)
   y_pred = model.predict(x_test)
+  y_probs = model.predict_proba(x_test)[:, 1]
   cv_accuracy  = cross_val_score(model, X, y_wl, cv=5, scoring='accuracy')
   cv_precision = cross_val_score(model, X, y_wl, cv=5, scoring='precision')
   cv_recall    = cross_val_score(model, X, y_wl, cv=5, scoring='recall')
+
+  pr_auc = cross_val_score(model, X, y_wl, cv=5, scoring='average_precision')
+
+  precisions, recalls, thresholds = precision_recall_curve(y_test, y_probs)
+  f1_scores = 2 * (precisions * recalls) / (precisions + recalls)
+  optimal_threshold = thresholds[f1_scores.argmax()]
+
+  y_pred_adjusted = (y_probs >= optimal_threshold).astype(int)
 
   st.write(f'{model} : ')
   st.write("Accuracy: ", accuracy)
@@ -141,6 +150,9 @@ for model in models:
   st.write(f"CV Accuracy:  {cv_accuracy.mean():.3f} (+/- {cv_accuracy.std():.3f})")
   st.write(f"CV Precision: {cv_precision.mean():.3f} (+/- {cv_precision.std():.3f})")
   st.write(f"CV Recall:    {cv_recall.mean():.3f} (+/- {cv_recall.std():.3f})")
+  st.write(f"Optimal Threshold: {optimal_threshold:.4f}")
+  st.write("Post-Threshold Accuracy:", accuracy_score(y_test, y_pred_adjusted))
+  st.write(f"PR-AUC (CV): {pr_auc.mean():.4f} ± {pr_auc.std():.4f}")
   st.write('------------------------------------------')
 
   ConfusionMatrixDisplay.from_estimator(model, x_test, y_test)
@@ -157,7 +169,7 @@ cols_to_scale = ['FGM', 'FG3M', 'DREB', 'REB', 'AST', 'PTS']
 for col in team_stats.columns:
   team_stats[f'{col}_PRE'] = team_stats[col]
 
-matchups = [[11, 9], [2, 4]]
+matchups = [[12, 13], [7, 2], [5, 11]]
 
 clf = XGBClassifier(booster='gblinear', random_state=42)
 clf.fit(X, y_wl)
