@@ -115,7 +115,7 @@ for col in matchups_logs.columns:
 
 st.write(final_features)
 
-X = matchups_logs[['FGM_PRE', 'FG_PCT_PRE', 'FG3M_PRE', 'FG3_PCT_PRE', 'DREB_PRE', 'REB_PRE', 'AST_PRE', 'PTS_PRE', 'PLUS_MINUS_PRE', 'HOME_OR_AWAY', 'FGM_PRE_OPP', 'FG_PCT_PRE_OPP', 'FG3M_PRE_OPP', 'FG3_PCT_PRE_OPP', 'DREB_PRE_OPP', 'REB_PRE_OPP', 'AST_PRE_OPP', 'PTS_PRE_OPP', 'PLUS_MINUS_PRE_OPP', 'HOME_OR_AWAY_OPP']]
+X = matchups_logs[['FGM_PRE', 'FG_PCT_PRE', 'FG3M_PRE', 'FG3_PCT_PRE', 'FTM_PRE', 'FT_PCT_PRE', 'DREB_PRE', 'REB_PRE', 'AST_PRE', 'STL_PRE', 'PTS_PRE', 'PLUS_MINUS_PRE', 'FGM_PRE_OPP', 'FG_PCT_PRE_OPP', 'FG3M_PRE_OPP', 'FG3_PCT_PRE_OPP', 'FTM_PRE_OPP', 'FT_PCT_PRE_OPP', 'DREB_PRE_OPP', 'REB_PRE_OPP', 'AST_PRE_OPP', 'STL_PRE_OPP', 'PTS_PRE_OPP', 'PLUS_MINUS_PRE_OPP']]
 y_wl = matchups_logs['W/L']
 
 scaler = StandardScaler()
@@ -123,27 +123,24 @@ X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
 
 x_train, x_test, y_train, y_test = train_test_split(X, y_wl, test_size=0.3, random_state=42)
 
-models = [LogisticRegression(max_iter=1000, random_state=42), SVC(
-  kernel='linear', random_state=42, probability=True), XGBClassifier(booster='gblinear', random_state=42), RandomForestClassifier(random_state=42)]
+models = [LogisticRegression(max_iter=1000, random_state=42), XGBClassifier(booster='gblinear', random_state=42), RandomForestClassifier(random_state=42)]
 
 for model in models:
   model.fit(x_train, y_train)
   accuracy = model.score(x_test, y_test)
   y_pred = model.predict(x_test)
-  if not isinstance(model, SVC):
-    y_probs = model.predict_proba(x_test)[:, 1]
+  y_probs = model.predict_proba(x_test)[:, 1]
   cv_accuracy  = cross_val_score(model, X, y_wl, cv=5, scoring='accuracy')
   cv_precision = cross_val_score(model, X, y_wl, cv=5, scoring='precision')
   cv_recall    = cross_val_score(model, X, y_wl, cv=5, scoring='recall')
 
   pr_auc = cross_val_score(model, X, y_wl, cv=5, scoring='average_precision')
 
-  if not isinstance(model, SVC):
-    precisions, recalls, thresholds = precision_recall_curve(y_test, y_probs)
-    f1_scores = 2 * (precisions * recalls) / (precisions + recalls)
-    optimal_threshold = thresholds[f1_scores.argmax()]
+  precisions, recalls, thresholds = precision_recall_curve(y_test, y_probs)
+  f1_scores = 2 * (precisions * recalls) / (precisions + recalls)
+  optimal_threshold = thresholds[f1_scores.argmax()]
 
-    y_pred_adjusted = (y_probs >= optimal_threshold).astype(int)
+  y_pred_adjusted = (y_probs >= optimal_threshold).astype(int)
 
   st.write(f'{model} : ')
   st.write("Accuracy: ", accuracy)
@@ -152,9 +149,8 @@ for model in models:
   st.write(f"CV Accuracy:  {cv_accuracy.mean():.3f} (+/- {cv_accuracy.std():.3f})")
   st.write(f"CV Precision: {cv_precision.mean():.3f} (+/- {cv_precision.std():.3f})")
   st.write(f"CV Recall:    {cv_recall.mean():.3f} (+/- {cv_recall.std():.3f})")
-  if not isinstance(model, SVC):
-    st.write(f"Optimal Threshold: {optimal_threshold:.4f}")
-    st.write("Post-Threshold Accuracy:", accuracy_score(y_test, y_pred_adjusted))
+  st.write(f"Optimal Threshold: {optimal_threshold:.4f}")
+  st.write("Post-Threshold Accuracy:", accuracy_score(y_test, y_pred_adjusted))
   st.write(f"PR-AUC (CV): {pr_auc.mean():.4f} ± {pr_auc.std():.4f}")
   st.write('------------------------------------------')
 
@@ -168,20 +164,17 @@ for model in models:
 team_stats = leaguedashteamstats.LeagueDashTeamStats(season='2026', league_id_nullable='10', per_mode_detailed='PerGame').get_data_frames()[0]
 st.write(team_stats)
 
-cols_to_scale = ['FGM', 'FG3M', 'DREB', 'REB', 'AST', 'PTS']
+cols_to_scale = ['FGM', 'FG3M', 'FTM', 'FT_PCT', 'DREB', 'REB', 'AST', 'STL', 'PTS']
 for col in team_stats.columns:
   team_stats[f'{col}_PRE'] = team_stats[col]
 
-matchups = [[12, 13], [7, 2], [5, 11]]
+matchups = [[0, 1], [3, 8], [10, 4]]
 
 clf = XGBClassifier(booster='gblinear', random_state=42)
 clf.fit(X, y_wl)
 
 log = LogisticRegression(max_iter=1000, random_state=42)
 log.fit(X, y_wl)
-
-svc = SVC(kernel='linear', probability=True, random_state=42)
-svc.fit(X, y_wl)
 
 rf = RandomForestClassifier(random_state=42)
 rf.fit(X, y_wl)
@@ -210,7 +203,7 @@ for i, matchup in enumerate(matchups):
   away_name = away['TEAM_NAME'].values[0]
   home_name = home['TEAM_NAME'].values[0]
 
-  models = {'XGBoost': clf, 'Logistic Regression': log, 'SVC': svc, 'Random Forest': rf}
+  models = {'XGBoost': clf, 'Logistic Regression': log, 'Random Forest': rf}
 
   st.write(f"=== {away_name} (away) vs {home_name} (home) ===")
   for name, model in models.items():
