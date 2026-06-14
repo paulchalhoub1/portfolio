@@ -83,16 +83,7 @@ plt.xticks(rotation=90)
 
 fig.colorbar(im)
 st.pyplot(fig)
-
-df_group_one = matchups_logs[['FG_PCT_PRE', 'FG_PCT_PRE_OPP', 'W/L']]
-df_group_one = df_group_one.groupby(['FG_PCT_PRE', 'FG_PCT_PRE_OPP'], as_index=False).agg({'W/L': 'mean'})
-grouped_pivot = df_group_one.pivot(index='FG_PCT_PRE', columns='FG_PCT_PRE_OPP')
-
-fig, ax = plt.subplots()
-im = ax.pcolor(grouped_pivot, cmap='RdBu')
-
-fig.colorbar(im)
-st.pyplot(fig)
+plt.close(fig)
 
 matchups_logs = matchups_logs.drop(columns=['TEAM_ABBREVIATION', 'MATCHUP'])
 st.write(matchups_logs.corr())
@@ -115,7 +106,43 @@ for col in matchups_logs.columns:
 
 st.write(final_features)
 
-X = matchups_logs[['FGM_PRE', 'FG_PCT_PRE', 'FG3M_PRE', 'FG3_PCT_PRE', 'FTM_PRE', 'FT_PCT_PRE', 'DREB_PRE', 'REB_PRE', 'AST_PRE', 'STL_PRE', 'PTS_PRE', 'PLUS_MINUS_PRE', 'FGM_PRE_OPP', 'FG_PCT_PRE_OPP', 'FG3M_PRE_OPP', 'FG3_PCT_PRE_OPP', 'FTM_PRE_OPP', 'FT_PCT_PRE_OPP', 'DREB_PRE_OPP', 'REB_PRE_OPP', 'AST_PRE_OPP', 'STL_PRE_OPP', 'PTS_PRE_OPP', 'PLUS_MINUS_PRE_OPP']]
+fig, ax = plt.subplots()
+sns.regplot(
+    x='FGM_PRE', y='W/L', data=matchups_logs,
+    logistic=True,
+    scatter_kws={'alpha': 0.1},
+    line_kws={'color': 'red'},
+    ax=ax
+)
+ax.set_ylabel("P(Win)")
+st.pyplot(fig)
+plt.close(fig)
+
+fig, ax = plt.subplots()
+sns.regplot(
+    x='FG_PCT_PRE', y='W/L', data=matchups_logs,
+    logistic=True,
+    scatter_kws={'alpha': 0.1},
+    line_kws={'color': 'red'},
+    ax=ax
+)
+ax.set_ylabel("P(Win)")
+st.pyplot(fig)
+plt.close(fig)
+
+fig, ax = plt.subplots()
+sns.regplot(
+    x='AST_PRE', y='W/L', data=matchups_logs,
+    logistic=True,
+    scatter_kws={'alpha': 0.1},
+    line_kws={'color': 'red'},
+    ax=ax
+)
+ax.set_ylabel("P(Win)")
+st.pyplot(fig)
+plt.close(fig)
+
+X = matchups_logs[['FGM_PRE', 'FG_PCT_PRE', 'AST_PRE', 'FGM_PRE_OPP', 'FG_PCT_PRE_OPP', 'AST_PRE_OPP']]
 y_wl = matchups_logs['W/L']
 
 scaler = StandardScaler()
@@ -164,11 +191,11 @@ for model in models:
 team_stats = leaguedashteamstats.LeagueDashTeamStats(season='2026', league_id_nullable='10', per_mode_detailed='PerGame').get_data_frames()[0]
 st.write(team_stats)
 
-cols_to_scale = ['FGM', 'FG3M', 'FTM', 'FT_PCT', 'DREB', 'REB', 'AST', 'STL', 'PTS']
+cols_to_scale = ['FGM', 'FG3M', 'FTM', 'FTA', 'DREB', 'REB', 'AST', 'PF', 'PFD', 'PTS']
 for col in team_stats.columns:
   team_stats[f'{col}_PRE'] = team_stats[col]
 
-matchups = [[0, 1], [3, 8], [10, 4]]
+matchups = [[14, 9], [0, 13]]
 
 clf = XGBClassifier(booster='gblinear', random_state=42)
 clf.fit(X, y_wl)
